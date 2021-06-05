@@ -20,9 +20,9 @@ public class PlotMovement {
         this.plotMovementCronProcessor = plotMovementCronProcessor;
     }
 
-    @Scheduled(cron = "* */1 * * * *")
+    @Scheduled(fixedRate = 5000)
     public void startScheduledCronMovement() throws Exception {
-        log.debug("Start scheduled cron movement");
+        log.info("Start job for plot movement");
         plotMovementCronExecutor.start(plotMovementCronProcessor::checkAndSendPlotIfNeeded);
     }
 
