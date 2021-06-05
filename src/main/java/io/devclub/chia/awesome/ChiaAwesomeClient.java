@@ -4,16 +4,22 @@ import io.devclub.chia.awesome.facade.ChiaAwesomeRestFacade;
 import io.devclub.chia.awesome.rest.request.ChiaServer;
 import io.devclub.chia.awesome.rest.request.Disk;
 import io.devclub.chia.awesome.rest.request.Ipv4Address;
+import io.devclub.chia.awesome.rest.request.Plot;
 import io.devclub.chia.awesome.service.NetworkService;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystems;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,10 +45,13 @@ public class ChiaAwesomeClient {
                 ipv4Addresses,
                 disks
         );
+        log.info("==================================CHIA SERVER=======================================");
+        log.info(chiaServer.toString());
+        log.info("==============================CHIA SERVER LOADED====================================");
     }
 
     private List<Ipv4Address> loadIpv4Addresses() {
-        log.info("Loading ipv4 addresses");
+        log.info("Mapping ipv4 addresses");
         List<Ipv4Address> ipv4Addresses = this.networkService.getLocalAddresses()
                 .stream()
                 .map(interfaceAddress -> Ipv4Address.builder()
@@ -50,7 +59,7 @@ public class ChiaAwesomeClient {
                         .mask(interfaceAddress.getNetworkPrefixLength())
                         .build())
                 .collect(Collectors.toList());
-        log.info("Loaded {} ipv4 addresses", ipv4Addresses.size());
+        log.info("{} ipv4 addresses mapped", ipv4Addresses.size());
         return ipv4Addresses;
     }
 
@@ -70,13 +79,8 @@ public class ChiaAwesomeClient {
             if (total / gB > 500) {
                 Matcher matcher = diskPattern.matcher(store.toString());
                 if (matcher.find()) {
-                    Disk disk = Disk.builder()
-                            .path(matcher.group(1))
-                            .name(store.name())
-                            .totalSpace(total)
-                            .usedSpace(used)
-                            .availableSpace(avail)
-                            .build();
+                    Disk disk = new Disk(matcher.group(1), store.name(), total, used, avail, loadPlotsFromDisk(matcher.group(1)));
+                    log.info("Disk: {} loaded", disk.toString());
                     disks.add(disk);
                 }
             }
@@ -86,6 +90,29 @@ public class ChiaAwesomeClient {
 
         log.info("Disk information loaded");
         return disks;
+    }
+
+    @SneakyThrows
+    private List<Plot> loadPlotsFromDisk(String path) {
+        if (path == null) {
+            return new ArrayList<>();
+        }
+        File file = new File(path);
+        if (file.isDirectory()) {
+            log.info("Loading plots on disk ({})", path);
+            return Arrays.stream(Objects.requireNonNull(file.listFiles()))
+                    .map(File::getAbsolutePath)
+                    .map(this::loadPlotsFromDisk)
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .collect(Collectors.toList());
+        } else if (file.getName().endsWith(".plot")) {
+            log.info("Plot ({}) found", file.getName());
+            return Collections.singletonList(new Plot(file.getName(), file.getAbsolutePath(), file.length()));
+
+        }
+        log.warn("File {} is not plot", file.getAbsolutePath());
+        return new ArrayList<>();
     }
 
 }
