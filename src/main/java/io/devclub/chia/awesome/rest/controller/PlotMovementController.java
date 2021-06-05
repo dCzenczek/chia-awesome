@@ -10,6 +10,7 @@ public class PlotMovementController {
 
     @GetMapping
     public boolean isPlotNeeded(){
+        log.debug("New plot is not needed");
         return false;
     }
 
