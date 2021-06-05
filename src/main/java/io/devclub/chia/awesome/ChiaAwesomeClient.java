@@ -1,10 +1,9 @@
 package io.devclub.chia.awesome;
 
 import io.devclub.chia.awesome.facade.ChiaAwesomeRestFacade;
+import io.devclub.chia.awesome.rest.request.ChiaServer;
 import io.devclub.chia.awesome.rest.request.Disk;
-import io.devclub.chia.awesome.rest.request.RegisterServerRequest;
 import io.devclub.chia.awesome.rest.request.Ipv4Address;
-import io.devclub.chia.awesome.rest.response.RegisterServerResponse;
 import io.devclub.chia.awesome.service.NetworkService;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
@@ -24,21 +23,26 @@ import java.util.stream.Collectors;
 @Component
 @Scope("singleton")
 public class ChiaAwesomeClient {
-    private final String uuid;
+    private final ChiaServer chiaServer;
     private final NetworkService networkService;
     private final ChiaAwesomeRestFacade chiaAwesomeRestFacade;
+    private final Pattern diskPattern = Pattern.compile("(.*)\\s\\((.*)\\)");
 
     public ChiaAwesomeClient(NetworkService networkService,
                              ChiaAwesomeRestFacade chiaAwesomeRestFacade) {
         this.networkService = networkService;
         this.chiaAwesomeRestFacade = chiaAwesomeRestFacade;
-        this.uuid = UUID.randomUUID().toString();
-        registerClient();
-        loadDisks();
+        List<Ipv4Address> ipv4Addresses = loadIpv4Addresses();
+        List<Disk> disks = loadDisks();
+        this.chiaServer = new ChiaServer(
+                UUID.randomUUID().toString(),
+                ipv4Addresses,
+                disks
+        );
     }
 
-    private void registerClient() {
-        log.info("Registering Chia Awesome Client (" + uuid + ")");
+    private List<Ipv4Address> loadIpv4Addresses() {
+        log.info("Loading ipv4 addresses");
         List<Ipv4Address> ipv4Addresses = this.networkService.getLocalAddresses()
                 .stream()
                 .map(interfaceAddress -> Ipv4Address.builder()
@@ -46,19 +50,12 @@ public class ChiaAwesomeClient {
                         .mask(interfaceAddress.getNetworkPrefixLength())
                         .build())
                 .collect(Collectors.toList());
-
-        RegisterServerRequest request = RegisterServerRequest.builder()
-                .uuid(uuid)
-                .ipv4Addresses(ipv4Addresses)
-                .build();
-
-        RegisterServerResponse registerServerResponse = chiaAwesomeRestFacade.registerServer(request);
-        log.info("Server registered: " + registerServerResponse.toString());
+        log.info("Loaded {} ipv4 addresses", ipv4Addresses.size());
+        return ipv4Addresses;
     }
 
-    Pattern diskPattern = Pattern.compile("(.*)\\s\\((.*)\\)");
     @SneakyThrows
-    private void loadDisks() {
+    private List<Disk> loadDisks() {
         log.info("Load disk information");
         List<Disk> disks = new ArrayList<>();
         long _byte = 1;
@@ -88,6 +85,7 @@ public class ChiaAwesomeClient {
         disks.forEach(disk -> log.info(disk.toString()));
 
         log.info("Disk information loaded");
+        return disks;
     }
 
 }
