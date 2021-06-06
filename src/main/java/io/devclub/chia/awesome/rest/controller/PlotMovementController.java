@@ -1,8 +1,8 @@
 package io.devclub.chia.awesome.rest.controller;
 
 import io.devclub.chia.awesome.rest.request.Plot;
+import io.devclub.chia.awesome.rest.request.PlotMovementRequest;
 import io.devclub.chia.awesome.socket.plot.receiver.PlotReceiver;
-import io.devclub.chia.awesome.socket.plot.receiver.SocketChannelSingleton;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,18 +25,18 @@ public class PlotMovementController {
     }
 
     @PostMapping(value = "/acceptPlot")
-    public boolean acceptPlot(@RequestBody Plot plot) throws IOException {
+    public boolean acceptPlot(@RequestBody PlotMovementRequest plotMovementRequest) throws IOException {
+        //First check if new plot is needed
+        if (!checkPlotAcceptation()) {
+            return false;
+        }
+        //Calculate optimal place to store new plot and get full path
+        String pathToStorePlot = calculateWhereToPutPlot(plotMovementRequest.getPlot());
+        PlotReceiver plotReceiver = new PlotReceiver(plotMovementRequest.getSocketPort(),pathToStorePlot);
+        plotReceiver.run();
 
-        // TODO: 05/06/2021
-        String pathToStorePlot = calculateWhereToPutPlot();
-        PlotReceiver plotReceiver = new PlotReceiver();
-
-        // Singleton just for test, it should be on new Thread i guess
-        plotReceiver.readFileFromSocketChannel(SocketChannelSingleton.getSocketChannel(), pathToStorePlot);
-
-
-        // return OK saving on another thread.
-        return checkPlotSize(plot);
+        // return OK when no Exception and socket channel on port is open
+        return true;
     }
 
     public boolean checkPlotAcceptation() {
@@ -44,7 +44,7 @@ public class PlotMovementController {
         return false;
     }
 
-    public String calculateWhereToPutPlot() {
+    public String calculateWhereToPutPlot(Plot plot) {
         // TODO: 05/06/2021 calculate best Optimal disc to put plot
         return "";
     }
@@ -53,6 +53,7 @@ public class PlotMovementController {
         // TODO: 05/06/2021 check if plot is the same size local and on remote
         return false;
     }
+
 
 
 }
