@@ -1,8 +1,12 @@
 package io.devclub.chia.awesome.rest.controller;
 
 import io.devclub.chia.awesome.rest.request.Plot;
+import io.devclub.chia.awesome.socket.plot.receiver.PlotReceiver;
+import io.devclub.chia.awesome.socket.plot.receiver.SocketChannelSingleton;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 @Log4j2
 @RestController
@@ -21,11 +25,17 @@ public class PlotMovementController {
     }
 
     @PostMapping(value = "/acceptPlot")
-    public boolean acceptPlot(@RequestBody Plot plot) {
+    public boolean acceptPlot(@RequestBody Plot plot) throws IOException {
 
         // TODO: 05/06/2021
         String pathToStorePlot = calculateWhereToPutPlot();
-        // TODO: 05/06/2021 store plot on disc;
+        PlotReceiver plotReceiver = new PlotReceiver();
+
+        // Singleton just for test, it should be on new Thread i guess
+        plotReceiver.readFileFromSocketChannel(SocketChannelSingleton.getSocketChannel(), pathToStorePlot);
+
+
+        // return OK saving on another thread.
         return checkPlotSize(plot);
     }
 

@@ -13,16 +13,9 @@ import java.util.EnumSet;
 
 public class PlotReceiver {
 
-//    public static void main(String[] args) throws IOException {
-//        PlotReceiver server = new PlotReceiver();
-//        SocketChannel socketChannel = server.createServerSocketChannel();
-//        server.readFileFromSocketChannel(socketChannel);
-//
-//    }
-
-    private void readFileFromSocketChannel(SocketChannel socketChannel) throws IOException {
+    public boolean readFileFromSocketChannel(SocketChannel socketChannel, String pathString) throws IOException {
         //Try to create a new file
-        Path path = Paths.get("E:\\receiver\\YI041701.mp4");
+        Path path = Paths.get(pathString);
         FileChannel fileChannel = FileChannel.open(path,
                 EnumSet.of(StandardOpenOption.CREATE,
                         StandardOpenOption.TRUNCATE_EXISTING,
@@ -38,16 +31,8 @@ public class PlotReceiver {
         fileChannel.close();
         System.out.println("Receving file successfully!");
         socketChannel.close();
+        return true;
     }
 
-    private SocketChannel createServerSocketChannel() throws IOException {
-        ServerSocketChannel serverSocket = null;
-        SocketChannel client = null;
-        serverSocket = ServerSocketChannel.open();
-        serverSocket.socket().bind(new InetSocketAddress(9000));
-        client = serverSocket.accept();
 
-        System.out.println("connection established .." + client.getRemoteAddress());
-        return client;
-    }
 }
