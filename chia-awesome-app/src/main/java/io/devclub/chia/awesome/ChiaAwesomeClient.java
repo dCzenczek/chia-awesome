@@ -4,6 +4,9 @@ import io.devclub.chia.awesome.api.rest.model.ChiaServer;
 import io.devclub.chia.awesome.api.rest.model.Disk;
 import io.devclub.chia.awesome.api.rest.model.Ipv4Address;
 import io.devclub.chia.awesome.api.rest.model.Plot;
+import io.devclub.chia.awesome.config.ClientConfig;
+import io.devclub.chia.awesome.config.PlotMovementThreshold;
+import io.devclub.chia.awesome.config.ThresholdType;
 import io.devclub.chia.awesome.service.NetworkService;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 @Scope("singleton")
 public class ChiaAwesomeClient {
     private final ChiaServer chiaServer;
+    private final ClientConfig clientConfig;
     private final NetworkService networkService;
     private final Pattern diskPattern = Pattern.compile("(.*)\\s\\((.*)\\)");
 
@@ -45,10 +49,17 @@ public class ChiaAwesomeClient {
         log.info("==================================CHIA SERVER=======================================");
         log.info(chiaServer.toString());
         log.info("==============================CHIA SERVER LOADED====================================");
+        log.info("============================LOADING CLIENT CONFIG===================================");
+        clientConfig = new ClientConfig(new PlotMovementThreshold(ThresholdType.PERCENT, 80));
+        log.info("=============================CLIENT CONFIG LOADED===================================");
     }
 
-    public List<ChiaServer> getConnectedChiaServers() {
-        return chiaServer.getConnectedChiaServers();
+    public ChiaServer getChiaServer() {
+        return chiaServer;
+    }
+
+    public ClientConfig getClientConfig() {
+        return clientConfig;
     }
 
     private List<Ipv4Address> loadIpv4Addresses() {
