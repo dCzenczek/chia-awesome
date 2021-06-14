@@ -6,7 +6,6 @@ import io.devclub.chia.awesome.api.rest.model.ChiaServer;
 import io.devclub.chia.awesome.api.rest.model.Disk;
 import io.devclub.chia.awesome.api.rest.model.Ipv4Address;
 import io.devclub.chia.awesome.config.ClientConfig;
-import io.devclub.chia.awesome.config.ThresholdType;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
@@ -43,7 +42,7 @@ public class PlotMovementCronProcessor {
             }
         } else if (isPlotMovementNeededBetweenDisks()) {
             log.info("Plot movement needed between disks");
-            List<Disk> overloadedDisks = new ArrayList<>(getOverLoadedDisks());
+            List<Disk> overloadedDisks = new ArrayList<>(getOverloadedDisks());
             List<Disk> unfilledDisks = getUnfilledDisks();
             unfilledDisks.forEach(toDisk -> {
                 Disk fromDisk = overloadedDisks.get(0);
@@ -59,20 +58,29 @@ public class PlotMovementCronProcessor {
 
     private List<Disk> getUnfilledDisks() {
         log.info("Getting unfilled disks");
-        return Collections.emptyList();
+        List<Disk> disksBelowThreshold = chiaServer.getDisks()
+                .stream()
+                .filter(this::isDiskBelowThreshold)
+                .collect(Collectors.toList());
+        log.info("Found {} disks below threshold", disksBelowThreshold.size());
+        return disksBelowThreshold;
     }
 
-    private List<Disk> getOverLoadedDisks() {
+    private List<Disk> getOverloadedDisks() {
         log.info("Getting overloaded disks");
-
-        return Collections.emptyList();
+        List<Disk> overloadedDisks = chiaServer.getDisks()
+                .stream()
+                .filter(disk -> !isDiskBelowThreshold(disk))
+                .collect(Collectors.toList());
+        log.info("Found {} overloaded disks", overloadedDisks.size());
+        return overloadedDisks;
     }
 
     public boolean isPlotMovementNeededBetweenDisks() {
         log.info("Checking if plot movement is needed between disks");
         List<Boolean> collect = chiaServer.getDisks()
                 .stream()
-                .map(this::checkDiskThreshold)
+                .map(this::isDiskBelowThreshold)
                 .distinct()
                 .collect(Collectors.toList());
 
@@ -83,19 +91,7 @@ public class PlotMovementCronProcessor {
         log.info("Checking if plot movement is needed between severs");
         boolean anyDiskNeed = chiaServer.getDisks()
                 .stream()
-                .anyMatch(disk -> {
-                    if (ThresholdType.PERCENT.equals(clientConfig.getPlotMovementThreshold().getType())) {
-                        if (disk.getUsedSpace() / disk.getTotalSpace() * 100 < clientConfig.getPlotMovementThreshold().getValue()) {
-                            return true;
-                        }
-                    }
-                    if (ThresholdType.GIB_SPACE.equals(clientConfig.getPlotMovementThreshold().getType())) {
-                        if (disk.getAvailableSpace() / 1024 / 1024 / 1024 < clientConfig.getPlotMovementThreshold().getValue()) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
+                .anyMatch(this::isDiskBelowThreshold);
         return !anyDiskNeed;
     }
 
@@ -127,18 +123,15 @@ public class PlotMovementCronProcessor {
         return serverIpWhichNeedPlotTheMost;
     }
 
-    private Boolean checkDiskThreshold(Disk disk) {
-
-        if (ThresholdType.PERCENT.equals(clientConfig.getPlotMovementThreshold().getType())) {
-            if (disk.getUsedSpace() / disk.getTotalSpace() * 100 < clientConfig.getPlotMovementThreshold().getValue()) {
-                return true;
-            }
+    private Boolean isDiskBelowThreshold(Disk disk) {
+        if (clientConfig.getPlotMovementThreshold().isPercentThreshold()) {
+            return clientConfig.getPlotMovementThreshold().isDiskBelowPercent(disk);
+        } else if (clientConfig.getPlotMovementThreshold().isGibSpaceThreshold()) {
+            return clientConfig.getPlotMovementThreshold().isDiskBelowGibSPace(disk);
+        } else {
+            log.warn("Threshold not configured");
+            return false;
         }
-        if (ThresholdType.GIB_SPACE.equals(clientConfig.getPlotMovementThreshold().getType())) {
-            if (disk.getAvailableSpace() / 1024 / 1024 / 1024 < clientConfig.getPlotMovementThreshold().getValue()) {
-                return true;
-            }
-        }
-        return false;
     }
+
 }

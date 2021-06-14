@@ -10,4 +10,5 @@ public class ClientConfig {
     public ClientConfig(PlotMovementThreshold plotMovementThreshold) {
         this.plotMovementThreshold = plotMovementThreshold;
     }
+
 }
